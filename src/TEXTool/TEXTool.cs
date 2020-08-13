@@ -183,11 +183,15 @@ namespace TEXTool
             string fileDir = fileInfo.DirectoryName;
             string fileNameWithoutExt = fileInfo.Name.Replace(fileInfo.Extension, "");
             string atlasDataPath = fileDir + @"\" + fileNameWithoutExt + "." + atlasExt;
+            Console.WriteLine("afefsfesfesfefsfesf:"+atlasDataPath);
             List<KleiTextureAtlasElement> atlasElements = new List<KleiTextureAtlasElement>();
             
             if (File.Exists(atlasDataPath))
-            {
+            {              
                 atlasElements = ReadAtlasData(atlasDataPath, mipmap.Width, mipmap.Height);
+            }else
+            {
+                Console.WriteLine("不存在");
             }
 
             var imgReader = new BinaryReader(new MemoryStream(argbData));
@@ -229,22 +233,12 @@ namespace TEXTool
                 foreach (XmlNode xChild in xNodeElements.ChildNodes)
                 {
                     string name = xChild.Attributes.GetNamedItem("name").Value;
-                    double u1 = Convert.ToDouble(xChild.Attributes.GetNamedItem("u1").Value.Replace(".", ","));
-                    double u2 = Convert.ToDouble(xChild.Attributes.GetNamedItem("u2").Value.Replace(".", ","));
-
-                    /* !!! IMPORTANT TIP !!!
-                     * You may need to invert the y-axis depending on the software you use to check your pixel coordinates. 
-                     * Some image softwares count from the bottom left corner and others from the top left corner. 
-                     * The former can be used as-is because the game uses the same format. 
-                     * But if your software counts pixels starting from the upper left corner, you should not use them directly. 
-                     * Instead, subtract your resulting coordinates them from 1. 
-                     * E.g. if your y-coordinate is 0.3, you would use 0.7 (1 – 0.3).
-                     * ONLY for Y-coordinates.
-                     */
+                    double u1 = Convert.ToDouble(xChild.Attributes.GetNamedItem("u1").Value);
+                    double u2 = Convert.ToDouble(xChild.Attributes.GetNamedItem("u2").Value);
 
                     /* NORMAL THE Y-AXIS */
-                    double v1 = Convert.ToDouble(xChild.Attributes.GetNamedItem("v1").Value.Replace(".", ","));
-                    double v2 = Convert.ToDouble(xChild.Attributes.GetNamedItem("v2").Value.Replace(".", ","));
+                    double v1 = Convert.ToDouble(xChild.Attributes.GetNamedItem("v1").Value);
+                    double v2 = Convert.ToDouble(xChild.Attributes.GetNamedItem("v2").Value);
 
                     /* INVERT THE Y-AXIS */
                     v1 = 1 - v1;
@@ -262,8 +256,8 @@ namespace TEXTool
             }
             catch (Exception e)
             {
-                AtlasElements.Clear();
-                Console.WriteLine(e.Message);
+              
+                Console.WriteLine("错误："+e.Message);
             }
             return AtlasElements;
         }

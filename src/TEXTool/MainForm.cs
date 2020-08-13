@@ -33,6 +33,9 @@ using System.ComponentModel;
 
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Xml;
+using System.IO;
+using System.Drawing.Imaging;
 
 namespace TEXTool
 {
@@ -106,15 +109,67 @@ namespace TEXTool
                 MessageBox.Show(@"Error, this is a pre 'Cave Update' TEX file. If you want to convert this, please use an older version of TEXTool or 'update' the file using the converter found in the offical thread.");
         }
 
+        public void OpenExternalFile(string filename)
+        {
+            using (OpenFileDialog dialog = new OpenFileDialog())
+            {
+                dialog.FileName = filename;
+                ProgressForm = new ProgressForm { StartPosition = FormStartPosition.CenterParent };
+                backgroundWorker.RunWorkerAsync(dialog);
+            }
+        }
+
         private void OpenFileDialog()
         {
             using (OpenFileDialog dialog = new OpenFileDialog())
             {
-                dialog.Filter = "Klei Texture Files (*.tex)|*.tex|All Files (*.*)|*.*";
+                dialog.Filter = "Klei Texture Files (*.tex)|*.tex|(Klei Xml File)|*.xml|All Files (*.*)|*.*";
                 dialog.DefaultExt = "tex";
 
                 if (dialog.ShowDialog(this) == DialogResult.OK)
                 {
+                    string[] file = dialog.FileName.Split('.');
+                    if(file[file.Length-1]=="xml")
+                    {
+                      
+                        TEXTool tool = new TEXTool();
+                        XmlDocument anxml = new XmlDocument();
+                        anxml.LoadXml(File.ReadAllText( dialog.FileName));
+                        XmlNode atlas = anxml.GetElementsByTagName("Atlas")[0];
+                        XmlNode texture = atlas.SelectSingleNode("Texture");
+                        string texname = texture.Attributes["filename"].Value;
+                        string dictor = Path.GetDirectoryName(dialog.FileName) + @"\";
+                        string xmlpath =dictor + texname;
+                        Console.WriteLine(xmlpath);
+
+                        tool.OpenFile(dialog.SafeFileName, new FileStream(xmlpath, FileMode.Open));
+                        int alterwidth = tool.CurrentFileRaw.Width;
+                        int alterheight = tool.CurrentFileRaw.Height;
+                        XmlNode Elements = atlas.SelectSingleNode("Elements");
+                        XmlNodeList elements= Elements.SelectNodes("Element");
+                        foreach(XmlNode node in elements)
+                        {
+                            string name = node.Attributes["name"].Value.Split('.')[0] + ".png";
+                            float u1 = Convert.ToSingle(node.Attributes["u1"].Value);
+                            float u2 = Convert.ToSingle(node.Attributes["u2"].Value);
+                            float v1 = Convert.ToSingle(node.Attributes["v1"].Value);
+                            float v2 = Convert.ToSingle(node.Attributes["v2"].Value);
+                            int imageheight= (int)(alterheight * v2 - alterheight * v1);
+                            int imagewidth = (int)(alterwidth * u2 - alterwidth * u1);
+                            Console.WriteLine("(" + (int)(alterwidth * u1) + "," + (int)(alterheight - (alterheight * v1) - imageheight) + ")  (" + (int)(alterwidth * u2) + "," + (int)(alterheight - alterheight * v2 + imageheight) + ")");
+                            Rectangle cloneRect = new Rectangle((int)(alterwidth * u1), (int)(alterheight - (alterheight * v1) - imageheight), imagewidth, imageheight);
+                            //Rectangle cloneRect = new Rectangle(0, (int)(alterheight - (alterheight * v1) - imageheight), (int)(alterwidth * u2), (int)(alterheight - alterheight * v2 + imageheight));
+                            System.Drawing.Imaging.PixelFormat format =tool.CurrentFileRaw.PixelFormat;
+                            Bitmap cloneBitmap = tool.CurrentFileRaw.Clone(cloneRect, format);
+                            FileStream wimage = new FileStream(dictor + name,FileMode.Create);
+                            cloneBitmap.Save(wimage,ImageFormat.Png);
+                            wimage.Close();
+                        }
+                        System.Diagnostics.ProcessStartInfo psi = new System.Diagnostics.ProcessStartInfo("Explorer.exe");
+                        psi.Arguments = "/e,/select," + dialog.FileName;
+                        System.Diagnostics.Process.Start(psi);
+                        return;
+                    }
                     ProgressForm = new ProgressForm();
                     ProgressForm.StartPosition = FormStartPosition.CenterParent;
                     backgroundWorker.RunWorkerAsync(dialog);
@@ -307,6 +362,16 @@ namespace TEXTool
                 Pen pen = new Pen(new SolidBrush(color), 5f);
                 e.Graphics.DrawPath(pen, graphicsPath);
             }
+        }
+
+        private void MainForm_Load(object sender, EventArgs e)
+        {
+
+        }
+
+        private void mipmapsToolStripStatusLabel_Click(object sender, EventArgs e)
+        {
+
         }
 
         private void tool_OnProgressUpdate(int value)
